@@ -55,7 +55,7 @@ makedir(output_dir)
 makedir(os.path.join(output_dir, "train"))
 makedir(os.path.join(output_dir, "validation"))
 makedir(os.path.join(output_dir, "test"))
-makedir(os.path.join(output_dir, "attention_maps"))
+#makedir(os.path.join(output_dir, "attention_maps"))
 n_classes = int(args.n_classes) 
 
 ## Find good files - Get labels from participants.tsv
