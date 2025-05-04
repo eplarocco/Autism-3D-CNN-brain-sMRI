@@ -25,7 +25,9 @@ from torchsummary import summary
 import time
 import nibabel as nib
 import torch.nn as nn
-#print_config()
+#Use AMP (Automatic Mixed Precision), which the H200 supports
+from torch.cuda.amp import GradScaler, autocast
+scaler = GradScaler()
 
 
 ## Set the seed for reproducibility
@@ -90,10 +92,10 @@ device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 #train_loader = DataLoader(train_subjects_dataset, batch_size=2, pin_memory=torch.cuda.is_available(), shuffle=True)
 from torchio import SubjectsDataset, SubjectsLoader
 train_dataset = SubjectsDataset(train_subjects)
-train_loader = SubjectsLoader(train_dataset, batch_size=2, shuffle=True)
+train_loader = SubjectsLoader(train_dataset, batch_size=2, shuffle=True, num_workers=16, pin_memory=True) #increased # of workers
 #val_loader = DataLoader(validation_subjects_dataset, batch_size=2, pin_memory=torch.cuda.is_available())
 val_dataset = SubjectsDataset(validation_subjects)
-val_loader = SubjectsLoader(val_dataset, batch_size=2, shuffle=False)
+val_loader = SubjectsLoader(val_dataset, batch_size=2, shuffle=False, num_workers=8, pin_memory=True) #increased # of workers
 
 ## Load model, initialize CrossEntropyLoss and Adam optimizer
 model = resnet50(sample_input_D=256, sample_input_H=256, sample_input_W=256, num_seg_classes=n_classes)
@@ -147,11 +149,19 @@ for epoch in range(10):
         #print(inputs.size())
         #print(labels.size())
         optimizer.zero_grad()
-        outputs = model(inputs)
+        ###### Mixed Precision
+        with autocast():
+            outputs = model(inputs)
+            loss = loss_function(outputs, labels)
+        #outputs = model(inputs)
         #print(outputs.size())
-        loss = loss_function(outputs, labels)
-        loss.backward()
-        optimizer.step()
+        #loss = loss_function(outputs, labels)
+        #loss.backward()
+        #optimizer.step()
+        scaler.scale(loss).backward()
+        scaler.step(optimizer)
+        scaler.update()
+        ######
         epoch_loss += loss.item()
         epoch_len = len(train_dataset) // train_loader.batch_size#epoch_len = len(train_subjects_dataset) // train_loader.batch_size
         log(f"{step}/{epoch_len}, train_loss: {loss.item():.4f}")
