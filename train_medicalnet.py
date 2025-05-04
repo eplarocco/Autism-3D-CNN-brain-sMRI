@@ -12,6 +12,7 @@ import numpy as np
 import pandas as pd
 import torch
 import torchio as tio
+from torchio import SubjectsDataset, SubjectsLoader
 from monai.data import DataLoader
 import monai
 from monai.config import print_config
@@ -81,10 +82,11 @@ for i, subid in enumerate(common_subjects_to_analyze):
     elif "val" in datasets[i]:
         validation_subjects.append(tio.Subject(image = tio.ScalarImage(os.path.join(prep_dir, "val", subid + "_prep.nii.gz"), reader=nib_reader), label=torch.tensor(labels[i], dtype=torch.float32)))
 
-train_subjects_dataset = tio.SubjectsDataset(train_subjects)
-validation_subjects_dataset = tio.SubjectsDataset(validation_subjects)
+#train_subjects_dataset = tio.SubjectsDataset(train_subjects)
+#validation_subjects_dataset = tio.SubjectsDataset(validation_subjects)
 
 ## Dataloader to be able to launch training
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 #train_loader = DataLoader(train_subjects_dataset, batch_size=2, pin_memory=torch.cuda.is_available(), shuffle=True)
 from torchio import SubjectsDataset, SubjectsLoader
 train_dataset = SubjectsDataset(train_subjects)
@@ -94,15 +96,20 @@ val_dataset = SubjectsDataset(validation_subjects)
 val_loader = SubjectsLoader(val_dataset, batch_size=2, shuffle=False)
 
 ## Load model, initialize CrossEntropyLoss and Adam optimizer
-device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 model = resnet50(sample_input_D=256, sample_input_H=256, sample_input_W=256, num_seg_classes=n_classes)
 net_dict = model.state_dict()
 #pretrain_path = '/home/melanie/sMRI_ASD/net2/MedicalNet/pretrain/resnet_50.pth'
 log('loading pretrained model {}'.format(pretrain_path))
 pretrain = torch.load(pretrain_path)
-pretrain_dict = {k: v for k, v in pretrain['state_dict'].items() if k in net_dict.keys()}
+########### For when loading from original resnet ###########
+#pretrain_dict = {k: v for k, v in pretrain['state_dict'].items() if k in net_dict.keys()}
+##################################################################
+########### For when loading from saved checkpoints ###########
+pretrain_dict = {k: v for k, v in pretrain.items() if k in net_dict.keys()}
+##################################################################
 net_dict.update(pretrain_dict)
 model.load_state_dict(net_dict)
+
 # Set the parameters that need to be optimized to True and the others to False
 for name, param in model.named_parameters():
     #if param.requires_grad:
@@ -146,7 +153,7 @@ for epoch in range(10):
         loss.backward()
         optimizer.step()
         epoch_loss += loss.item()
-        epoch_len = len(train_subjects_dataset) // train_loader.batch_size
+        epoch_len = len(train_dataset) // train_loader.batch_size#epoch_len = len(train_subjects_dataset) // train_loader.batch_size
         log(f"{step}/{epoch_len}, train_loss: {loss.item():.4f}")
         #writer.add_scalar("train_loss", loss.item(), epoch_len * epoch + step)
     epoch_loss /= step

@@ -110,8 +110,8 @@ pd.DataFrame(validation_meta_data).to_csv(os.path.join(output_dir, "validation",
 pd.DataFrame(test_meta_data).to_csv(os.path.join(output_dir, "test", "test_meta_data.csv"))
 
 ## Dataloader
-#ds_loader = DataLoader(subjects_dataset, batch_size=1, pin_memory=torch.cuda.is_available())
-ds_loader = DataLoader(subjects_dataset, batch_size=1)
+ds_loader = DataLoader(subjects_dataset, batch_size=1, pin_memory=torch.cuda.is_available())
+#ds_loader = DataLoader(subjects_dataset, batch_size=1)
 
 #def set_parameter_requires_grad(model, feature_extracting):
 #    if feature_extracting:
@@ -119,8 +119,8 @@ ds_loader = DataLoader(subjects_dataset, batch_size=1)
 #            param.requires_grad = False
 
 ## Load model, initialize CrossEntropyLoss and Adam optimizer
-#device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-device = torch.device("cpu") # if the model is too big
+device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+#device = torch.device("cpu") # if the model is too big
 model = resnet50(sample_input_D=256, sample_input_H=256, sample_input_W=256, num_seg_classes=n_classes)
 model = nn.Sequential(model, nn.AvgPool3d(32), nn.Flatten(), nn.Linear(2048, 2))
 net_dict = model.state_dict()
