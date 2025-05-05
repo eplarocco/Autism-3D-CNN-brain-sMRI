@@ -135,7 +135,7 @@ best_metric = -1
 best_metric_epoch = -1
 epoch_loss_values = list()
 metric_values = list()
-for epoch in range(10):
+for epoch in range(24,43):
     log("-" * 10)
     log(f"epoch {epoch + 1}")
     model.train()
