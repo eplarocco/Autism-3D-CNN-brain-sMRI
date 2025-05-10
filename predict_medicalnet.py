@@ -31,7 +31,7 @@ from monai.data import CSVSaver
 
 
 ## Set the seed for reproducibility
-set_determinism(seed=0)
+set_determinism(seed=42)
 
 ## Define parser to let the user give instructions
 parser = argparse.ArgumentParser(description='Example BIDS App entrypoint script.')
