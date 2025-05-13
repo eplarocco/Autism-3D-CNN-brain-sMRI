@@ -12,7 +12,8 @@ import numpy as np
 import pandas as pd
 import torch
 import torchio as tio
-from monai.data import DataLoader
+from torchio import SubjectsDataset, SubjectsLoader
+#from monai.data import DataLoader
 import monai
 from monai.config import print_config
 from torch.utils.tensorboard import SummaryWriter
@@ -91,7 +92,8 @@ subjects_dataset = tio.SubjectsDataset(subjects)
 pd.DataFrame(meta_data).to_csv(os.path.join(output_dir, "meta_data.csv"))
 
 ## Dataloader
-ds_loader = DataLoader(subjects_dataset, batch_size=1)
+#ds_loader = DataLoader(subjects_dataset, batch_size=1)
+ds_loader = SubjectsLoader(subjects_dataset, batch_size=1, shuffle=False, num_workers=8)
 
 ## Load model, initialize CrossEntropyLoss and Adam optimizer
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -101,7 +103,7 @@ model = nn.Sequential(model, nn.AvgPool3d(32), nn.Flatten(), nn.Linear(2048, 2))
 net_dict = model.state_dict()
 #pretrain_path = '/home/melanie/sMRI_ASD/net2/MedicalNet/pretrain/resnet_50.pth'
 #log('loading pretrained model {}'.format(pretrain_path))
-pretrain = torch.load(pretrain_path)
+pretrain = torch.load(pretrain_path, weights_only=True)
 pretrain_dict = {k: v for k, v in pretrain.items() if k in net_dict.keys()}
 net_dict.update(pretrain_dict)
 model.load_state_dict(net_dict)

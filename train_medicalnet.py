@@ -84,9 +84,9 @@ for i, subid in enumerate(common_subjects_to_analyze):
 ## Dataloader to be able to launch training
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 train_dataset = SubjectsDataset(train_subjects)
-train_loader = SubjectsLoader(train_dataset, batch_size=4, shuffle=True, num_workers=8, pin_memory=True)
+train_loader = SubjectsLoader(train_dataset, batch_size=16, shuffle=True, num_workers=8, pin_memory=True)
 val_dataset = SubjectsDataset(validation_subjects)
-val_loader = SubjectsLoader(val_dataset, batch_size=4, shuffle=False, num_workers=8, pin_memory=True)
+val_loader = SubjectsLoader(val_dataset, batch_size=16, shuffle=False, num_workers=8, pin_memory=True)
 
 # --- MODEL SETUP ---
 model = resnet50(sample_input_D=256, sample_input_H=256, sample_input_W=256, num_seg_classes=n_classes)
