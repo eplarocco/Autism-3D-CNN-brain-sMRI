@@ -11,7 +11,7 @@ import pandas as pd
 import torch
 import torchio as tio
 from torchio import SubjectsDataset, SubjectsLoader
-from monai.data import DataLoader
+#from monai.data import DataLoader
 import monai
 from monai.config import print_config
 from torch.utils.tensorboard import SummaryWriter
@@ -25,8 +25,8 @@ import nibabel as nib
 import torch.nn as nn
 
 #Use AMP (Automatic Mixed Precision), which the H200 supports
-from torch.cuda.amp import GradScaler, autocast
-scaler = GradScaler()
+from torch.amp import GradScaler, autocast
+scaler = GradScaler('cuda')
 
 ## Set the seed for reproducibility
 set_determinism(seed=42)
@@ -83,10 +83,8 @@ for i, subid in enumerate(common_subjects_to_analyze):
 
 ## Dataloader to be able to launch training
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-#train_subjects_dataset = tio.SubjectsDataset(train_subjects)
 train_dataset = SubjectsDataset(train_subjects)
-train_loader = SubjectsLoader(train_dataset, batch_size=4, shuffle=True, num_workers=12, pin_memory=True)
-#validation_subjects_dataset = tio.SubjectsDataset(validation_subjects)
+train_loader = SubjectsLoader(train_dataset, batch_size=4, shuffle=True, num_workers=8, pin_memory=True)
 val_dataset = SubjectsDataset(validation_subjects)
 val_loader = SubjectsLoader(val_dataset, batch_size=4, shuffle=False, num_workers=8, pin_memory=True)
 
@@ -108,15 +106,15 @@ start_epoch = 0  # >>> ADDED <<<
 
 if args.resume:  # >>> ADDED <<<
     log(f"Resuming training from checkpoint: {pretrain_path}")
-    checkpoint = torch.load(pretrain_path, map_location=device)
+    checkpoint = torch.load(pretrain_path, map_location=device, weights_only=True)
     model.load_state_dict(checkpoint['model_state_dict'])
     #pretrain_dict = {k: v for k, v in checkpoint.items() if k in model.keys()}
     optimizer.load_state_dict(checkpoint['optimizer_state_dict'])
     scaler.load_state_dict(checkpoint['scaler_state_dict'])
     start_epoch = checkpoint['epoch']
 else:
-    log('Loading pretrained model weights selectively (backbone)')
-    pretrained_weights = torch.load(pretrain_path, map_location=device)
+    log('Loading pretrained model weights from Resnet50 (backbone)')
+    pretrained_weights = torch.load(pretrain_path, map_location=device, weights_only=True)
     model_dict = model.state_dict()
     #pretrained_dict = {k: v for k, v in pretrained_weights.items() if k in model_dict}
     pretrained_dict = {k: v for k, v in pretrained_weights['state_dict'].items() if k in model_dict.keys()}
@@ -156,7 +154,7 @@ for epoch in range(start_epoch, 43):
         inputs, labels = batch_data["image"]["data"].to(device), batch_data["label"].long().to(device)
         optimizer.zero_grad()
         #import ipdb; ipdb.set_trace()
-        with autocast():
+        with autocast('cuda'):
             outputs = model(inputs)
             loss = loss_function(outputs, labels)
 
