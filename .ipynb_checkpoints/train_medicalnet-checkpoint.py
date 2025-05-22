@@ -41,6 +41,9 @@ parser.add_argument('output_dir', default='/out_dir', help='The directory where 
 parser.add_argument('pretrain_path', default='./pretrain/resnet_50.pth', help='The directory with the pretrained model saved.')
 parser.add_argument('--n_classes', default='2')
 parser.add_argument('--resume', action='store_true', help='Resume training from checkpoint')  # >>> ADDED <<<
+parser.add_argument('--lr', type=float, default = 0.0003, help='Learning Rate (ex 3e-4 or 0.0003)')  # >>> ADDED <<<
+parser.add_argument('--batch', type=int, default = 8, help='Batch Size')  # >>> ADDED <<<
+parser.add_argument('--epochs', type=int, default = 15, help='Total Number of Epochs')  # >>> ADDED <<<
 
 ## Parse Data
 args = parser.parse_args()
@@ -49,6 +52,9 @@ prep_dir = args.prep_dir
 output_dir = args.output_dir
 pretrain_path = args.pretrain_path
 n_classes = args.n_classes
+lr = args.lr
+batchsize = args.batch
+epchs = args.epochs
 
 ## Create output directory
 makedir(output_dir)
@@ -84,9 +90,9 @@ for i, subid in enumerate(common_subjects_to_analyze):
 ## Dataloader to be able to launch training
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 train_dataset = SubjectsDataset(train_subjects)
-train_loader = SubjectsLoader(train_dataset, batch_size=4, shuffle=True, num_workers=8, pin_memory=True)
+train_loader = SubjectsLoader(train_dataset, batch_size=batchsize, shuffle=True, num_workers=8, pin_memory=True)
 val_dataset = SubjectsDataset(validation_subjects)
-val_loader = SubjectsLoader(val_dataset, batch_size=4, shuffle=False, num_workers=8, pin_memory=True)
+val_loader = SubjectsLoader(val_dataset, batch_size=batchsize, shuffle=False, num_workers=8, pin_memory=True)
 
 # --- MODEL SETUP ---
 model = resnet50(sample_input_D=256, sample_input_H=256, sample_input_W=256, num_seg_classes=n_classes)
@@ -100,7 +106,7 @@ for name, param in model.named_parameters():
 model = nn.Sequential(model, nn.AvgPool3d(32), nn.Flatten(), nn.Linear(2048, 2))  # classifier head
 model.to(device)
 # import ipdb; ipdb.set_trace()
-optimizer = torch.optim.Adam(model.parameters(), 3e-4)
+optimizer = torch.optim.Adam(model.parameters(), lr)
 
 start_epoch = 0  # >>> ADDED <<<
 
@@ -141,7 +147,7 @@ epoch_loss_values = []
 metric_values = []
 
 # --- TRAINING LOOP ---
-for epoch in range(start_epoch, 43):
+for epoch in range(start_epoch, epchs):
     log("-" * 10)
     log(f"epoch {epoch + 1}")
     model.train()
@@ -164,7 +170,7 @@ for epoch in range(start_epoch, 43):
 
         epoch_loss += loss.item()
         epoch_len = len(train_dataset) // train_loader.batch_size
-        log(f"{step}/{epoch_len}, train_loss: {loss.item():.4f}")
+        #log(f"{step}/{epoch_len}, train_loss: {loss.item():.4f}")
 
     epoch_loss /= step
     epoch_loss_values.append(epoch_loss)
@@ -172,35 +178,36 @@ for epoch in range(start_epoch, 43):
     log(f"epoch {epoch + 1} average loss: {epoch_loss:.4f}")
     log("Epoch time duration: " + str(elapsed_time))
 
-    if (epoch + 1) % val_interval == 0:
-        model.eval()
-        with torch.no_grad():
-            num_correct = 0.0
-            metric_count = 0
-            for val_data in val_loader:
-                val_images, val_labels = val_data["image"]['data'].to(device), val_data["label"].long().to(device)
-                val_outputs = model(val_images)
-                value = torch.eq(val_outputs.argmax(dim=1), val_labels)
-                metric_count += len(value)
-                num_correct += value.sum().item()
-            metric = num_correct / metric_count
-            metric_values.append(metric)
-            if metric > best_metric:
-                best_metric = metric
-                best_metric_epoch = epoch + 1
-            log(f"current epoch: {epoch + 1} current accuracy: {metric:.4f} best accuracy: {best_metric:.4f} at epoch {best_metric_epoch}")
+    # Evaluate Model
+    model.eval()
+    with torch.no_grad():
+        num_correct = 0.0
+        metric_count = 0
+        for val_data in val_loader:
+            val_images, val_labels = val_data["image"]['data'].to(device), val_data["label"].long().to(device)
+            val_outputs = model(val_images)
+            value = torch.eq(val_outputs.argmax(dim=1), val_labels)
+            metric_count += len(value)
+            num_correct += value.sum().item()
+        metric = num_correct / metric_count
+        metric_values.append(metric)
+        if metric > best_metric:
+            best_metric = metric
+            best_metric_epoch = epoch + 1
 
-    if (epoch + 1) % 2 == 0:
-        checkpoint_path = os.path.join(output_dir, f"checkpoint_{epoch+1}.pth")
-        torch.save({
-            'epoch': epoch + 1,
-            'model_state_dict': model.state_dict(),
-            'optimizer_state_dict': optimizer.state_dict(),
-            'scaler_state_dict': scaler.state_dict(),
-            'loss': epoch_loss,
-        }, checkpoint_path)  # >>> CHANGED <<<
-
-        torch.save(model.state_dict(), os.path.join(output_dir, "model_" + str(epoch+1) + "_epochs.pth"))
+            # Save if best
+            checkpoint_path = os.path.join(output_dir, f"checkpoint_{epoch+1}.pth")
+            torch.save({
+                'epoch': epoch + 1,
+                'model_state_dict': model.state_dict(),
+                'optimizer_state_dict': optimizer.state_dict(),
+                'scaler_state_dict': scaler.state_dict(),
+                'loss': epoch_loss,
+            }, checkpoint_path)  # >>> CHANGED <<<
+    
+            torch.save(model.state_dict(), os.path.join(output_dir, "model_" + str(epoch+1) + "_epochs.pth"))
+        
+        log(f"current epoch: {epoch + 1} current accuracy: {metric:.4f} best accuracy: {best_metric:.4f} at epoch {best_metric_epoch}")
 
 log(f"train completed, best_metric: {best_metric:.4f} at epoch: {best_metric_epoch}")
 logclose()
