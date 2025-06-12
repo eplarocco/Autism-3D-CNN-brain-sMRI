@@ -17,7 +17,7 @@ from monai.config import print_config
 from torch.utils.tensorboard import SummaryWriter
 from monai.utils import set_determinism
 from utils.helpers import makedir
-from resnet2 import resnet50
+from resnet2 import resnet50, resnet18 #CHANGED
 from utils.log import create_logger
 from torchsummary import summary
 import time
@@ -95,7 +95,8 @@ val_dataset = SubjectsDataset(validation_subjects)
 val_loader = SubjectsLoader(val_dataset, batch_size=batchsize, shuffle=False, num_workers=8, pin_memory=True)
 
 # --- MODEL SETUP ---
-model = resnet50(sample_input_D=256, sample_input_H=256, sample_input_W=256, num_seg_classes=n_classes)
+#model = resnet50(sample_input_D=256, sample_input_H=256, sample_input_W=256, num_seg_classes=n_classes)
+model = resnet18(sample_input_D=128, sample_input_H=128, sample_input_W=128, num_seg_classes=n_classes) #CHANGED
 
 # Set the parameters that need to be optimized to True and the others to False
 for name, param in model.named_parameters():
@@ -103,7 +104,9 @@ for name, param in model.named_parameters():
         param.requires_grad = True
     else:
         param.requires_grad = False
-model = nn.Sequential(model, nn.AvgPool3d(32), nn.Flatten(), nn.Linear(2048, 2))  # classifier head
+#model = nn.Sequential(model, nn.AvgPool3d(32), nn.Flatten(), nn.Linear(2048, 2))  # classifier head
+model = nn.Sequential(model, nn.AdaptiveAvgPool3d(1), nn.Flatten(), nn.Linear(512, 2)) #CHANGED
+
 model.to(device)
 # import ipdb; ipdb.set_trace()
 optimizer = torch.optim.Adam(model.parameters(), lr)
