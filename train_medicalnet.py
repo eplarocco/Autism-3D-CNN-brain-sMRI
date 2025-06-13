@@ -122,7 +122,7 @@ if args.resume:  # >>> ADDED <<<
     scaler.load_state_dict(checkpoint['scaler_state_dict'])
     start_epoch = checkpoint['epoch']
 else:
-    log('Loading pretrained model weights from Resnet50 (backbone)')
+    log(f"Loading pretrained model weights from MedicalNet: {pretrain_path}")
     pretrained_weights = torch.load(pretrain_path, map_location=device, weights_only=True)
     model_dict = model.state_dict()
     #pretrained_dict = {k: v for k, v in pretrained_weights.items() if k in model_dict}

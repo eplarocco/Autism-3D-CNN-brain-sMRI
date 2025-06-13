@@ -19,7 +19,7 @@ from monai.config import print_config
 from torch.utils.tensorboard import SummaryWriter
 from monai.utils import set_determinism
 from utils.helpers import makedir
-from resnet2 import resnet50 # Changed from : from models.resnet2 import resnet50
+from resnet2 import resnet50, resnet18 #CHANGED
 #from model import generate_model
 from utils.log import create_logger
 from torchsummary import summary
@@ -98,8 +98,10 @@ ds_loader = SubjectsLoader(subjects_dataset, batch_size=1, shuffle=False, num_wo
 ## Load model, initialize CrossEntropyLoss and Adam optimizer
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 #device = torch.device("cpu") # if the model is too big 
-model = resnet50(sample_input_D=256, sample_input_H=256, sample_input_W=256, num_seg_classes=n_classes)
-model = nn.Sequential(model, nn.AvgPool3d(32), nn.Flatten(), nn.Linear(2048, 2))
+#model = resnet50(sample_input_D=256, sample_input_H=256, sample_input_W=256, num_seg_classes=n_classes)
+model = resnet18(sample_input_D=128, sample_input_H=128, sample_input_W=128, num_seg_classes=n_classes) #CHANGED
+#model = nn.Sequential(model, nn.AvgPool3d(32), nn.Flatten(), nn.Linear(2048, 2))
+model = nn.Sequential(model, nn.AdaptiveAvgPool3d(1), nn.Flatten(), nn.Linear(512, 2)) #CHANGED
 net_dict = model.state_dict()
 #pretrain_path = '/home/melanie/sMRI_ASD/net2/MedicalNet/pretrain/resnet_50.pth'
 #log('loading pretrained model {}'.format(pretrain_path))
