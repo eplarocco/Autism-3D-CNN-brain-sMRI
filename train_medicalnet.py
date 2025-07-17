@@ -17,7 +17,7 @@ from monai.config import print_config
 from torch.utils.tensorboard import SummaryWriter
 from monai.utils import set_determinism
 from utils.helpers import makedir
-from resnet2 import resnet50, resnet18 #CHANGED
+from resnet2 import resnet50, resnet10 #CHANGED
 from utils.log import create_logger
 from torchsummary import summary
 import time
@@ -82,10 +82,12 @@ train_subjects = []
 validation_subjects = []
 for i, subid in enumerate(common_subjects_to_analyze):
     if "train" in datasets[i]:
-        filename = os.path.join(prep_dir, "train", subid + "_prep.nii.gz")
+        filename = os.path.join(prep_dir, subid, "anat", subid + "_T1w.nii.gz")
+        #filename = os.path.join(prep_dir, "train", subid + "_prep.nii.gz") #changed for new data
         train_subjects.append(tio.Subject(image = tio.ScalarImage(filename, reader=nib_reader), label=torch.tensor(labels[i], dtype=torch.float32)))
     elif "val" in datasets[i]:
-        validation_subjects.append(tio.Subject(image = tio.ScalarImage(os.path.join(prep_dir, "val", subid + "_prep.nii.gz"), reader=nib_reader), label=torch.tensor(labels[i], dtype=torch.float32)))
+        validation_subjects.append(tio.Subject(image = tio.ScalarImage(os.path.join(prep_dir, subid, "anat", subid + "_T1w.nii.gz"),                          #tio.ScalarImage(os.path.join(prep_dir, "val", subid + "_prep.nii.gz"), #changed for new data
+reader=nib_reader), label=torch.tensor(labels[i], dtype=torch.float32)))
 
 ## Dataloader to be able to launch training
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
@@ -96,7 +98,7 @@ val_loader = SubjectsLoader(val_dataset, batch_size=batchsize, shuffle=False, nu
 
 # --- MODEL SETUP ---
 #model = resnet50(sample_input_D=256, sample_input_H=256, sample_input_W=256, num_seg_classes=n_classes)
-model = resnet18(sample_input_D=128, sample_input_H=128, sample_input_W=128, num_seg_classes=n_classes) #CHANGED
+model = resnet10(sample_input_D=128, sample_input_H=128, sample_input_W=128, num_seg_classes=n_classes) #CHANGED
 
 # Set the parameters that need to be optimized to True and the others to False
 for name, param in model.named_parameters():
